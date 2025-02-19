@@ -1,17 +1,21 @@
 package collector
 
 import (
+	"fmt"
+
 	gsrpc "github.com/polkadot-go/api/v4"
 	"github.com/polkadot-go/api/v4/types"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 )
 
 type PolkadotCollector struct {
 	CurrentEraDesc       *prometheus.Desc
 	ErasRewardPointsDesc *prometheus.Desc
+	Logger               *zerolog.Logger
 }
 
-func NewPolkadotCollector() *PolkadotCollector {
+func NewPolkadotCollector(nlogger *zerolog.Logger) *PolkadotCollector {
 	return &PolkadotCollector{
 		CurrentEraDesc: prometheus.NewDesc(
 			"node_current_era_index",
@@ -25,6 +29,7 @@ func NewPolkadotCollector() *PolkadotCollector {
 			[]string{"chain", "validator"},
 			nil,
 		),
+		Logger: nlogger,
 	}
 
 }
@@ -39,7 +44,11 @@ func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
 	wsurl := "ws://localhost:9944"
 	api, _ := gsrpc.NewSubstrateAPI(wsurl)
 	defer api.Client.Close()
-	number, chain, _, _ := getCurrentEra(api)
+	number, chain, _, err := collector.getCurrentEra(api)
+	if err != nil {
+		collector.Logger.Error().Err(err)
+		return
+	}
 
 	// logic of getting data from rpc endpoint
 	ch <- prometheus.MustNewConstMetric(
@@ -50,7 +59,7 @@ func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 }
 
-func getCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
+func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
 	chain, err := api.RPC.System.Chain()
 	if err != nil {
 		return 0, "", false, err
@@ -58,12 +67,14 @@ func getCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
 
 	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
+		fmt.Errorf("couldn't get the metadata: %s", err)
 		return 0, "", false, err
 	}
 
 	// Create storage key for Staking::CurrentEra
 	key, err := types.CreateStorageKey(meta, "Staking", "CurrentEra", nil, nil)
 	if err != nil {
+		fmt.Errorf("couldn't create storage key: %s", err)
 		return 0, "", false, err
 	}
 
@@ -71,6 +82,7 @@ func getCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
 	var currentEraOpt types.OptionU32
 	ok, err := api.RPC.State.GetStorageLatest(key, &currentEraOpt)
 	if err != nil {
+		fmt.Errorf("couldn't get storage latest: %s", err)
 		return 0, "", false, err
 	}
 

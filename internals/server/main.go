@@ -50,7 +50,7 @@ func Start() {
 	}
 
 	exp := NewExoprter(nlogger)
-	collector.RegisterCollectors()
+	collector.RegisterCollectors(&nlogger)
 
 	scheme, host, err := ListenAddrParser(ListenAddr)
 	if err != nil {
