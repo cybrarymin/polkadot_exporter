@@ -1,8 +1,6 @@
 package collector
 
 import (
-	"fmt"
-
 	gsrpc "github.com/polkadot-go/api/v4"
 	"github.com/polkadot-go/api/v4/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,11 +40,15 @@ func (collector *PolkadotCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
 	wsurl := "ws://localhost:9944"
-	api, _ := gsrpc.NewSubstrateAPI(wsurl)
+	api, err := gsrpc.NewSubstrateAPI(wsurl)
+	if err != nil {
+		collector.Logger.Error().Err(err).Send()
+		return
+	}
 	defer api.Client.Close()
 	number, chain, _, err := collector.getCurrentEra(api)
 	if err != nil {
-		collector.Logger.Error().Err(err)
+		collector.Logger.Error().Err(err).Send()
 		return
 	}
 
@@ -67,22 +69,22 @@ func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint
 
 	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
-		fmt.Errorf("couldn't get the metadata: %s", err)
+		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
 	}
 
 	// Create storage key for Staking::CurrentEra
 	key, err := types.CreateStorageKey(meta, "Staking", "CurrentEra", nil, nil)
 	if err != nil {
-		fmt.Errorf("couldn't create storage key: %s", err)
+		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
 	}
 
 	// Because currentEra is `Option<u32>`, we decode it into types.OptionU32
 	var currentEraOpt types.OptionU32
-	ok, err := api.RPC.State.GetStorageLatest(key, &currentEraOpt)
+	ok, err = api.RPC.State.GetStorageLatest(key, &currentEraOpt)
 	if err != nil {
-		fmt.Errorf("couldn't get storage latest: %s", err)
+		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
 	}
 
