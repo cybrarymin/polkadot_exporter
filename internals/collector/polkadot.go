@@ -82,7 +82,7 @@ func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint
 
 	// Because currentEra is `Option<u32>`, we decode it into types.OptionU32
 	var currentEraOpt types.OptionU32
-	ok, err = api.RPC.State.GetStorageLatest(key, &currentEraOpt)
+	ok, err := api.RPC.State.GetStorageLatest(key, &currentEraOpt)
 	if err != nil {
 		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
