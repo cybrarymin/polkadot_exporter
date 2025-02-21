@@ -42,7 +42,7 @@ jobs:
           go-version: 1.23.6
 
       - name: Build the Golang Application
-        run: make build/exporter/dockerImage DOCKER_IMAGENAME="${{ vars.DOCKER_IMAGE_NAME}}"
+        run: make build/exporter/dockerImage DOCKER_IMAGENAME="${{ vars.DOCKER_IMAGE_NAME }}"
 
       - name: Log in to docker registry
         run: docker login -u $DOCKER_REGISTRY_USERNAME -p $DOCKER_REGISTRY_PASS
