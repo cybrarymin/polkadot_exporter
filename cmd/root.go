@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cybrarymin/polkadot_exporter/internals/collector"
 	srv "github.com/cybrarymin/polkadot_exporter/internals/server"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,7 @@ var rootCmd = &cobra.Command{
 	Use:   "polkadot_exporter",
 	Short: "polkadot blockchain binary prometheus exporter",
 	Long: `This exporter is used to get connected to the polkadot binary api for collection
-	of data and converting it prometheus metrics
+	of data and converting it to prometheus metrics
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if srv.ShowVersion {
@@ -37,6 +38,7 @@ var rootCmd = &cobra.Command{
 			// check to see if certificate options are provided
 			cmdValidator.check(srv.CertPath != "" || srv.CertKeyPath != "", "certiface and privateKey files are mandatory using HTTPS")
 		}
+		cmdValidator.check(collector.RpcBackend != "", "backend server must be specified for the exporter")
 
 		ok := cmdValidator.valid()
 		if !ok {
@@ -70,4 +72,5 @@ func init() {
 	rootCmd.Flags().StringVar(&srv.ListenAddr, "listen-addr", "http://0.0.0.0:9100", "listen address for the exporter")
 	rootCmd.Flags().StringVar(&srv.CertPath, "crt", "", "HTTPs certificate .pem file path")
 	rootCmd.Flags().StringVar(&srv.CertKeyPath, "crt-key", "", "HTTPs key .pem file path")
+	rootCmd.Flags().StringVar(&collector.RpcBackend, "RpcBackend", "ws://localhost:9944", "rpc backend to expose metrics from")
 }

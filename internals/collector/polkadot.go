@@ -1,43 +1,80 @@
 package collector
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	gsrpc "github.com/polkadot-go/api/v4"
+	"github.com/polkadot-go/api/v4/types"
+)
 
-type PolkadotCollector struct {
-	CurrentEraDesc       *prometheus.Desc
-	ErasRewardPointsDesc *prometheus.Desc
+var RpcBackend string
+
+// EraRewardPoints is a custom struct to match the SCALE-encoded data
+type EraRewardPoints struct {
+	Total       types.U32
+	Individuals map[types.AccountID]types.U32
 }
 
-func NewPolkadotCollector() *PolkadotCollector {
-	return &PolkadotCollector{
-		CurrentEraDesc: prometheus.NewDesc(
-			"node_current_era_index",
-			"This is the latest planned era, depending on how the Session pallet queues the validator set, it might be active or not.",
-			[]string{"chain"},
-			nil,
-		),
-		ErasRewardPointsDesc: prometheus.NewDesc(
-			"node_eras_reward_points",
-			" Rewards for the last [Config::HistoryDepth] eras. If reward hasn't been set or has been removed then 0 reward is returned.",
-			[]string{"chain", "validator"},
-			nil,
-		),
+func GetCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
+	chain, err := api.RPC.System.Chain()
+	if err != nil {
+		return 0, "", false, err
 	}
 
+	meta, err := api.RPC.State.GetMetadataLatest()
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	// Create storage key for Staking::CurrentEra
+	key, err := types.CreateStorageKey(meta, "Staking", "CurrentEra", nil, nil)
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	// Because currentEra is `Option<u32>`, we decode it into types.OptionU32
+	var currentEraOpt types.OptionU32
+	ok, err := api.RPC.State.GetStorageLatest(key, &currentEraOpt)
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	// If storage not found or the Option is None, we return false
+	if !ok || currentEraOpt.IsNone() {
+		return 0, "", false, nil
+	}
+
+	// Unwrap the Option<u32> to get the actual value
+	_, eraVal := currentEraOpt.Unwrap()
+	return uint32(eraVal), string(chain), true, nil
 }
 
-func (collector *PolkadotCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- collector.CurrentEraDesc
-	ch <- collector.ErasRewardPointsDesc
+func GetErasRewardPoints(api *gsrpc.SubstrateAPI, eraIndex uint32) (*EraRewardPoints, error) {
+	meta, err := api.RPC.State.GetMetadataLatest()
+	if err != nil {
+		return nil, err
+	}
 
-}
+	eraBytes, err := encodeU32(eraIndex)
+	if err != nil {
+		return nil, err
+	}
 
-func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
+	// Create storage key for Staking::ErasRewardPoints(eraIndex)
+	key, err := types.CreateStorageKey(meta, "Staking", "ErasRewardPoints", eraBytes, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	// logic of getting data from rpc endpoint
-	ch <- prometheus.MustNewConstMetric(
-		collector.CurrentEraDesc,
-		prometheus.GaugeValue,
-		0,
-		"node-01",
-	)
+	// 3) Decode into your custom struct
+	var rewardPoints EraRewardPoints // <-- this is the custom struct we defined
+	ok, err := api.RPC.State.GetStorageLatest(key, &rewardPoints)
+	if err != nil {
+		return nil, err
+	}
+
+	// If there's nothing stored for that era index, return nil
+	if !ok {
+		return nil, nil
+	}
+
+	return &rewardPoints, nil
 }

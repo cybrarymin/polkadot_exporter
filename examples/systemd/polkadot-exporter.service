@@ -1,0 +1,38 @@
+[Unit]
+Description=exporter to scrape polkadot data
+###run script after specified targets and services
+After=network.target network-online.target
+
+##if required services doesn't start then your script fail to run
+##this script requires that root (/) be mounted the service unit for mounting ##root is -.mount
+Requires= -.mount
+
+##wants are soft dependencies if they fail nothing happens or influence your unit
+Wants=systemd-user-sessions.service
+
+[Service]
+##user to run script with
+User=root
+##Type=forking: If the prompt returns but the service keeps running in the background (i.e. the service daemonizes itself on its own), then Type = forking is the right choice.
+##Type=oneshot: this is useful for scripts that do a single job and then exit. ##You may want to set RemainAfterExit=yes as well so that systemd still considers ##the service as active after the process has exited.
+##Type=simple : If the service starts and keeps running, and the prompt does not return until you press Control-C or stop the service in some other way: then Type = simple is the right choice.
+
+Type=simple
+ExecStart=/bin/bash -c /exporter/polkadot-exporter-local-compatible
+ExecStop=kill -SIGTERM `pgrep polkadot-exporter-local-compatible`
+###timeout to kill the script or process if it doesn't run
+TimeoutSec=30
+
+##Restart Configures whether the service shall be restarted when the service process exits, is killed, or a timeout is reached
+Restart=on-failure
+
+##RestartSec Configures the time to sleep before restarting a service if the ##service get killed it restarts it after five second
+RestartSec=10
+
+##the scripts can run only 10 times in 350 second
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Install]
+##specify the target unit you want to use to run script in it
+WantedBy=multi-user.target
