@@ -57,9 +57,11 @@ Flags:
 
 ### Github actions and workflows
 To avoid failure on github actions consider add the below secrets and environment variables in github "secrets and variables section"
+<pre>
 secrets:
 DOCKER_REGISTRY_USERNAME
 DOCKER_REGISTRY_PASS
 
 envs:
 DOCKER_IMAGE_NAME
+</pre>
