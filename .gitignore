@@ -8,6 +8,9 @@
 *.so
 *.dylib
 bin/*
+.vscode/**
+.vscode/
+.qodo/
 # Test binary, built with `go test -c`
 *.test
 
