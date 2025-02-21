@@ -12,7 +12,31 @@ env:
   DOCKER_REGISTRY_PASS: ${{ secrets.DOCKER_REGISTRY_PASS }}
 
 jobs:
+conditional_job:
+    runs-on: 'ubuntu-latest'
+    outputs:
+      file_changed: ${{ steps.check_file_changed.outputs.changed }}
+    
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2
+    
+    - name: check_file_changed
+      id: check_file_changed
+      run: |
+        output=`git diff --name-only HEAD^ HEAD | grep -E "(Dockerfile|.*.go|Makefile|.envrc|workflows)" || true`
+        echo "tshoot:$output"
+        if [ -z `echo -n $output` ]
+        then 
+          echo "changed=false" >> $GITHUB_OUTPUT; 
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT; 
+        fi
+
   audit:
+    needs: conditional_job
     name: Run Code Audit
     runs-on: ubuntu-latest
     steps:
@@ -28,8 +52,9 @@ jobs:
         run: make audit
 
   build-and-push:
+  
     name: Build and Push Docker Image
-    needs: audit  # Ensures audit passes before building
+    needs: [audit, conditional_job]  # Ensures audit passes before building
     runs-on: ubuntu-latest
 
     steps:
