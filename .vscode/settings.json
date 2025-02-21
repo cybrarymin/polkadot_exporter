@@ -1,5 +1,0 @@
-{
-    "yaml.schemas": {
-        "https://json.schemastore.org/github-workflow.json": "file:///Users/snapp/go/cybrarymin/polkadot_exporter/.github/workflows/action.yaml"
-    }
-}
