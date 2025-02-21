@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cybrarymin/polkadot_exporter/internals/collector"
+	gsrpc "github.com/polkadot-go/api/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/pkgerrors"
 )
@@ -29,16 +30,27 @@ var (
 type Exporter struct {
 	logger zerolog.Logger
 	wg     sync.WaitGroup
+	api    *gsrpc.SubstrateAPI
 }
 
-func NewExoprter(logger zerolog.Logger) *Exporter {
+func NewExoprter(logger zerolog.Logger) (*Exporter, error) {
+	api, err := gsrpc.NewSubstrateAPI(collector.RpcBackend)
+	if err != nil {
+		return &Exporter{
+			logger,
+			sync.WaitGroup{},
+			api,
+		}, err
+	}
 	return &Exporter{
 		logger,
 		sync.WaitGroup{},
-	}
+		api,
+	}, nil
 }
 
 func Start() {
+	// Defining a new logger and setting condition to consider specific loglevel
 	var nlogger zerolog.Logger
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 
@@ -49,7 +61,12 @@ func Start() {
 		nlogger = zerolog.New(os.Stdout).With().Timestamp().Logger().Level(loglvl)
 	}
 
-	exp := NewExoprter(nlogger)
+	exp, err := NewExoprter(nlogger)
+	if err != nil {
+		nlogger.Error().Err(err).Msg("couldn't establish connection to the rpc backend to scrape metrics. backend metrics won't be available")
+
+	}
+
 	collector.RegisterCollectors(&nlogger)
 
 	scheme, host, err := ListenAddrParser(ListenAddr)

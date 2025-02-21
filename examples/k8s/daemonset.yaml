@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: polkadot-exporter
+  namespace: kube-system
+  labels:
+    k8s-app: polkadot-exporter
+spec:
+  selector:
+    matchLabels:
+      k8s-app: polkadot-exporter
+  template:
+    metadata:
+      labels:
+        k8s-app: polkadot-exporter
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/polka-nodes
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: exporter
+        image: cybrarymin/polkadot-exporter:v1.0.0
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi

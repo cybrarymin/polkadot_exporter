@@ -1,6 +1,6 @@
 module github.com/cybrarymin/polkadot_exporter
 
-go 1.22.0
+go 1.23.0
 
 toolchain go1.23.6
 
@@ -44,7 +44,7 @@ require (
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/vedhavyas/go-subkey/v2 v2.0.0 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
-	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
+	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect

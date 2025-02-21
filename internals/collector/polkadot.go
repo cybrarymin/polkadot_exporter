@@ -3,65 +3,17 @@ package collector
 import (
 	gsrpc "github.com/polkadot-go/api/v4"
 	"github.com/polkadot-go/api/v4/types"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rs/zerolog"
 )
 
-type PolkadotCollector struct {
-	CurrentEraDesc       *prometheus.Desc
-	ErasRewardPointsDesc *prometheus.Desc
-	Logger               *zerolog.Logger
+var RpcBackend string
+
+// EraRewardPoints is a custom struct to match the SCALE-encoded data
+type EraRewardPoints struct {
+	Total       types.U32
+	Individuals map[types.AccountID]types.U32
 }
 
-func NewPolkadotCollector(nlogger *zerolog.Logger) *PolkadotCollector {
-	return &PolkadotCollector{
-		CurrentEraDesc: prometheus.NewDesc(
-			"node_current_era_index",
-			"This is the latest planned era, depending on how the Session pallet queues the validator set, it might be active or not.",
-			[]string{"chain"},
-			nil,
-		),
-		ErasRewardPointsDesc: prometheus.NewDesc(
-			"node_eras_reward_points",
-			" Rewards for the last [Config::HistoryDepth] eras. If reward hasn't been set or has been removed then 0 reward is returned.",
-			[]string{"chain", "validator"},
-			nil,
-		),
-		Logger: nlogger,
-	}
-
-}
-
-func (collector *PolkadotCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- collector.CurrentEraDesc
-	ch <- collector.ErasRewardPointsDesc
-
-}
-
-func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
-	wsurl := "ws://localhost:9944"
-	api, err := gsrpc.NewSubstrateAPI(wsurl)
-	if err != nil {
-		collector.Logger.Error().Err(err).Send()
-		return
-	}
-	defer api.Client.Close()
-	number, chain, _, err := collector.getCurrentEra(api)
-	if err != nil {
-		collector.Logger.Error().Err(err).Send()
-		return
-	}
-
-	// logic of getting data from rpc endpoint
-	ch <- prometheus.MustNewConstMetric(
-		collector.CurrentEraDesc,
-		prometheus.GaugeValue,
-		float64(number),
-		chain,
-	)
-}
-
-func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
+func GetCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
 	chain, err := api.RPC.System.Chain()
 	if err != nil {
 		return 0, "", false, err
@@ -69,14 +21,12 @@ func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint
 
 	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
-		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
 	}
 
 	// Create storage key for Staking::CurrentEra
 	key, err := types.CreateStorageKey(meta, "Staking", "CurrentEra", nil, nil)
 	if err != nil {
-		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
 	}
 
@@ -84,7 +34,6 @@ func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint
 	var currentEraOpt types.OptionU32
 	ok, err := api.RPC.State.GetStorageLatest(key, &currentEraOpt)
 	if err != nil {
-		collector.Logger.Error().Err(err).Send()
 		return 0, "", false, err
 	}
 
@@ -98,36 +47,34 @@ func (collector *PolkadotCollector) getCurrentEra(api *gsrpc.SubstrateAPI) (uint
 	return uint32(eraVal), string(chain), true, nil
 }
 
-// func getErasRewardPoints(api *gsrpc.SubstrateAPI, eraIndex uint32) (*types.Rewa, error) {
-// 	meta, err := api.RPC.State.GetMetadataLatest()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error getting metadata: %w", err)
-// 	}
+func GetErasRewardPoints(api *gsrpc.SubstrateAPI, eraIndex uint32) (*EraRewardPoints, error) {
+	meta, err := api.RPC.State.GetMetadataLatest()
+	if err != nil {
+		return nil, err
+	}
 
-// 	// Create storage key for Staking::ErasRewardPoints(eraIndex)
-// 	// This is a map-like storage: "ErasRewardPoints" => (EraIndex) => EraRewardPoints
-// 	// So we encode eraIndex as the second parameter.
-// 	eraBytes, err := types.Encode(eraIndex)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error encoding eraIndex: %w", err)
-// 	}
+	eraBytes, err := encodeU32(eraIndex)
+	if err != nil {
+		return nil, err
+	}
 
-// 	key, err := types.CreateStorageKey(meta, "Staking", "ErasRewardPoints", eraBytes, nil)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error creating storage key for erasRewardPoints: %w", err)
-// 	}
+	// Create storage key for Staking::ErasRewardPoints(eraIndex)
+	key, err := types.CreateStorageKey(meta, "Staking", "ErasRewardPoints", eraBytes, nil)
+	if err != nil {
+		return nil, err
+	}
 
-// 	// Decode into EraRewardPoints
-// 	var rewardPoints types.EraRewardPoints
-// 	ok, err := api.RPC.State.GetStorageLatest(key, &rewardPoints)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("error fetching ErasRewardPoints for era %d: %w", eraIndex, err)
-// 	}
+	// 3) Decode into your custom struct
+	var rewardPoints EraRewardPoints // <-- this is the custom struct we defined
+	ok, err := api.RPC.State.GetStorageLatest(key, &rewardPoints)
+	if err != nil {
+		return nil, err
+	}
 
-// 	if !ok {
-// 		// Means there's no reward points stored for that era
-// 		return nil, nil
-// 	}
+	// If there's nothing stored for that era index, return nil
+	if !ok {
+		return nil, nil
+	}
 
-// 	return &rewardPoints, nil
-// }
+	return &rewardPoints, nil
+}

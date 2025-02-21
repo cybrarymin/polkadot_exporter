@@ -13,26 +13,31 @@ help: # @ before the command will not echo the command itself when we run make <
 
 .PHONY: prerequsite_confirm
 prerequsite_confirm:
-	@echo -n 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
+	@go install honnef.co/go/tools/cmd/staticcheck@latest
 
 
 
 #================================================================#
 # DEVELOPMENT
 #================================================================#
-## build/exporter: building the application
 current_time = $(shell date +"%Y-%m-%dT%H:%M:%S%z")
 git_version = $(shell git describe --always --long --dirty --tags 2>/dev/null; if [[ $$? != 0 ]]; then git describe --always --dirty; fi)
 
 Linkerflags = -s -X github.com/cybrarymin/polkadot_exporter/cmd/srv.BuildTime=${current_time} -X github.com/cybrarymin/greenlight/cmd/srv.Version=${git_version}
 .PHONY: build/exporter
+## build/exporter: building the exporter
 build/exporter:
 	@go mod tidy
 	GOOS=linux GOARCH=amd64 go build -ldflags="${Linkerflags}" -o=./bin/polkadot-exporter-linux-amd64 ./
 	GOOS=darwin GOARCH=arm64 go build -ldflags="${Linkerflags}" -o=./bin/polkadot-exporter-darwin-arm64 ./
 	go build -o=./bin/polkadot-exporter-local-compatible -ldflags="${Linkerflags}" ./
 
-## run/exporter: run the application
+.PHONY: build/exporter
+## build/exporter/dockerImage: building the docker image of the exporter
+build/exporter/dockerImage:
+	@docker build --build-arg Linkerflags="${Linkerflags}" -t "${DOCKER_IMAGENAME}":"${git_version}" ./
+
+## run/exporter: run the exporter
 .PHONY: run/exporter
 run/exporter/http:
 	@go run main.go 
@@ -43,8 +48,9 @@ run/exporter/https:
 #================================================================#
 # QUALITY CHECK , LINTING, Vendoring
 #================================================================#
+## audit: executing quality check, linting and unit tests
 .PHONY: audit
-audit:
+audit: prerequsite_confirm
 	@echo "Tidying and verifying golang packages and module dependencies..."
 	go mod tidy
 	go mod verify
@@ -56,7 +62,7 @@ audit:
 	staticcheck ./...
 	@echo "Running tests..."
 	go test -race -vet=off ./...
-
+## vendor: vendoring the packages in case necessary
 .PHONY: vendor
 vendor:
 	@echo "Tidying and verifying golang packages and module dependencies..."
