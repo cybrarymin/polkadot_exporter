@@ -10,7 +10,10 @@ var RpcBackend string
 // EraRewardPoints is a custom struct to match the SCALE-encoded data
 type EraRewardPoints struct {
 	Total       types.U32
-	Individuals map[types.AccountID]types.U32
+	Individuals []struct {
+		Key   types.AccountID
+		Value types.U32
+	}
 }
 
 func GetCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
@@ -31,20 +34,18 @@ func GetCurrentEra(api *gsrpc.SubstrateAPI) (uint32, string, bool, error) {
 	}
 
 	// Because currentEra is `Option<u32>`, we decode it into types.OptionU32
-	var currentEraOpt types.OptionU32
+	var currentEraOpt types.U32
 	ok, err := api.RPC.State.GetStorageLatest(key, &currentEraOpt)
 	if err != nil {
 		return 0, "", false, err
 	}
 
 	// If storage not found or the Option is None, we return false
-	if !ok || currentEraOpt.IsNone() {
+	if !ok {
 		return 0, "", false, nil
 	}
 
-	// Unwrap the Option<u32> to get the actual value
-	_, eraVal := currentEraOpt.Unwrap()
-	return uint32(eraVal), string(chain), true, nil
+	return uint32(currentEraOpt), string(chain), true, nil
 }
 
 func GetErasRewardPoints(api *gsrpc.SubstrateAPI, eraIndex uint32) (*EraRewardPoints, error) {
@@ -53,7 +54,7 @@ func GetErasRewardPoints(api *gsrpc.SubstrateAPI, eraIndex uint32) (*EraRewardPo
 		return nil, err
 	}
 
-	eraBytes, err := encodeU32(eraIndex)
+	eraBytes, err := encodeU32(eraIndex - 1)
 	if err != nil {
 		return nil, err
 	}

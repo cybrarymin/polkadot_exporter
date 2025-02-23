@@ -37,11 +37,11 @@ func rewardPointsParser(rewardPoints *collector.EraRewardPoints) map[string]uint
 	if rewardPoints != nil {
 		// Transform map[types.AccountID32]types.U32 into map[string]uint32
 		pointsMap = make(map[string]uint32, len(rewardPoints.Individuals))
-		for accountID, points := range rewardPoints.Individuals {
+		for _, rPoint := range rewardPoints.Individuals {
 			// Convert the 32-byte accountID to a hex string
-			accountStr := accountID.ToHexString()
+			accountStr := rPoint.Key.ToHexString()
 			// Convert the types.U32 to a plain Go uint32
-			pointsMap[accountStr] = uint32(points)
+			pointsMap[accountStr] = uint32(rPoint.Value)
 		}
 	} else {
 		// No reward points for this era

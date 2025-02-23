@@ -36,7 +36,7 @@ func (exp *Exporter) statusHandler(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"timestamp":            time.Now(),
 		"current_era":          float64(eraNumber),
-		"current_reward_point": rewardPointsParser(rewardPoints),
+		"current_reward_point": rewardPoints,
 	}
 
 	err = JsonWriter(w, data, http.StatusOK, nil)
