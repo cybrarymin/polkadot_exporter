@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-
-	"github.com/cybrarymin/polkadot_exporter/internals/collector"
 )
 
 func JsonWriter(w http.ResponseWriter, data interface{}, status int, headers http.Header) error {
@@ -30,22 +28,4 @@ func ListenAddrParser(addr string) (schema string, host string, err error) {
 		return "", "", err
 	}
 	return nUrl.Scheme, nUrl.Host, nil
-}
-
-func rewardPointsParser(rewardPoints *collector.EraRewardPoints) map[string]uint32 {
-	var pointsMap map[string]uint32
-	if rewardPoints != nil {
-		// Transform map[types.AccountID32]types.U32 into map[string]uint32
-		pointsMap = make(map[string]uint32, len(rewardPoints.Individuals))
-		for _, rPoint := range rewardPoints.Individuals {
-			// Convert the 32-byte accountID to a hex string
-			accountStr := rPoint.Key.ToHexString()
-			// Convert the types.U32 to a plain Go uint32
-			pointsMap[accountStr] = uint32(rPoint.Value)
-		}
-	} else {
-		// No reward points for this era
-		return nil
-	}
-	return pointsMap
 }
