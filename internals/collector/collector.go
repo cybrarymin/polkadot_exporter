@@ -57,7 +57,6 @@ func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
 	eraNumber, chain, _, err := GetCurrentEra(api)
 	if err != nil {
 		collector.Logger.Error().Err(err).Msg("couldn't get the currentEra from backend")
-		return
 	}
 
 	ch <- prometheus.MustNewConstMetric(
@@ -80,14 +79,14 @@ func (collector *PolkadotCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	//  Loop over each validator to expose `node_eras_reward_points`
-	for validatorAccountID, points := range rewardPoints.Individuals {
+	for _, rPoint := range rewardPoints.Individuals {
 		// Convert validator AccountID to something string-like
 		ch <- prometheus.MustNewConstMetric(
 			collector.ErasRewardPointsDesc,
 			prometheus.GaugeValue,
-			float64(points),
+			float64(rPoint.Value),
 			chain,
-			validatorAccountID.ToHexString(),
+			rPoint.Key.ToHexString(),
 		)
 	}
 }
