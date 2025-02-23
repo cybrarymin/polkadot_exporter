@@ -72,5 +72,5 @@ func init() {
 	rootCmd.Flags().StringVar(&srv.ListenAddr, "listen-addr", "http://0.0.0.0:9100", "listen address for the exporter")
 	rootCmd.Flags().StringVar(&srv.CertPath, "crt", "", "HTTPs certificate .pem file path")
 	rootCmd.Flags().StringVar(&srv.CertKeyPath, "crt-key", "", "HTTPs key .pem file path")
-	rootCmd.Flags().StringVar(&collector.RpcBackend, "RpcBackend", "ws://localhost:9944", "rpc backend to expose metrics from")
+	rootCmd.Flags().StringVar(&collector.RpcBackend, "RpcBackend", "wss://rpc.polkadot.io", "rpc backend to expose metrics from")
 }
